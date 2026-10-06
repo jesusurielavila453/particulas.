@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Partículas Azules</title>
+    <style>
+      :root {
+        --bg1: #031427;
+        --bg2: #0d1f3b;
+        --bg3: #154c8a;
+        --text: #e0f2fe;
+        --soft: rgba(147, 197, 253, 0.28);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html, body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: Arial, Helvetica, sans-serif;
+        background: radial-gradient(circle at top, var(--bg3), var(--bg2) 35%, var(--bg1) 100%);
+        color: var(--text);
+      }
+
+      body {
+        position: relative;
+      }
+
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+
+      .overlay {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        pointer-events: none;
+        z-index: 2;
+      }
+
+      .message {
+        text-align: center;
+        padding: 1.2rem 2rem;
+        background: rgba(15, 23, 42, 0.18);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 999px;
+        box-shadow: 0 0 25px rgba(96, 165, 250, 0.14);
+        backdrop-filter: blur(3px);
+      }
+
+      .message h1 {
+        margin: 0;
+        font-size: clamp(2rem, 5vw, 5rem);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 800;
+        color: #dbeafe;
+        text-shadow: 0 0 18px rgba(96, 165, 250, 0.9), 0 0 30px rgba(147, 197, 253, 0.8);
+      }
+
+      .message p {
+        margin: 0.5rem 0 0;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+        color: rgba(191, 219, 254, 0.9);
+      }
+
+      @media (max-width: 600px) {
+        .message {
+          padding: 1rem 1.2rem;
+          border-radius: 24px;
+        }
+
+        .message p {
+          letter-spacing: 0.12em;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+
+    <div class="overlay">
+      <div class="message">
+        <h1>Te amo</h1>
+        <p>mi corazón</p>
+      </div>
+    </div>
+
+    <script>
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+      const glowCanvas = document.createElement('canvas');
+      const glowCtx = glowCanvas.getContext('2d');
+
+      let width = 0;
+      let height = 0;
+      const floatParticles = [];
+      const burstParticles = [];
+      const starParticles = [];
+
+      const BLUE_SHADES = [
+        '#93c5fd', '#dbeafe', '#60a5fa', '#38bdf8', '#bfdbfe', '#3b82f6', '#2563eb', '#1d4ed8'
+      ];
+
+      function resizeCanvas() {
+        width = canvas.width = window.innerWidth * window.devicePixelRatio;
+        height = canvas.height = window.innerHeight * window.devicePixelRatio;
+        canvas.style.width = `${window.innerWidth}px`;
+        canvas.style.height = `${window.innerHeight}px`;
+        ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+      }
+
+      function randomBetween(min, max) {
+        return min + Math.random() * (max - min);
+      }
+
+      class Particle {
+        constructor(x, y, type) {
+          this.x = x;
+          this.y = y;
+          this.type = type;
+          this.maxLife = type === 'burst' ? randomBetween(110, 190) : randomBetween(260, 520);
+          this.life = this.maxLife;
+
+          if (type === 'burst') {
+            this.size = randomBetween(2, 5);
+            this.color = BLUE_SHADES[Math.floor(Math.random() * BLUE_SHADES.length)];
+            this.vx = 0;
+            this.vy = 0;
+            this.tx = x;
+            this.ty = y;
+            this.twinkle = Math.random() * Math.PI * 2;
+          } else {
+            this.vx = randomBetween(-0.7, 0.7);
+            this.vy = randomBetween(-0.7, 0.7);
+            this.size = randomBetween(1.2, 3.2);
+            this.color = BLUE_SHADES[Math.floor(Math.random() * BLUE_SHADES.length)];
+            this.twinkle = Math.random() * Math.PI * 2;
+          }
+        }
+
+        update() {
+          this.life -= 1;
+
+          if (this.type === 'burst') {
+            this.x += (this.tx - this.x) * 0.08;
+            this.y += (this.ty - this.y) * 0.08;
+            this.size *= 0.997;
+          } else {
+            this.x += this.vx;
+            this.y += this.vy;
+
+            if (this.x < -20) this.x = window.innerWidth + 20;
+            if (this.x > window.innerWidth + 20) this.x = -20;
+            if (this.y < -20) this.y = window.innerHeight + 20;
+            if (this.y > window.innerHeight + 20) this.y = -20;
+          }
+        }
+
+        draw() {
+          const alpha = Math.max(this.life / this.maxLife, 0);
+          ctx.beginPath();
+          ctx.fillStyle = this.color;
+          ctx.globalAlpha = alpha;
+          ctx.shadowBlur = this.type === 'burst' ? 15 : 8;
+          ctx.shadowColor = this.color;
+          ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+          ctx.shadowBlur = 0;
+        }
+
+        get isDead() {
+          return this.life <= 0;
+        }
+      }
+
+      function createFloatingParticles() {
+        floatParticles.length = 0;
+        const total = Math.min(180, Math.max(110, Math.floor(window.innerWidth / 10)));
+
+        for (let i = 0; i < total; i++) {
+          const p = new Particle(
+            Math.random() * window.innerWidth,
+            Math.random() * window.innerHeight,
+            'float'
+          );
+          p.life = randomBetween(p.maxLife * 0.3, p.maxLife);
+          floatParticles.push(p);
+        }
+      }
+
+      function spawnHeartBurst(x, y) {
+        const count = 150;
+        const scale = 13;
+
+        for (let i = 0; i < count; i++) {
+          const t = (i / count) * Math.PI * 2;
+          const heartX = 16 * Math.pow(Math.sin(t), 3);
+          const heartY = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+
+          const p = new Particle(x, y, 'burst');
+          p.tx = x + heartX * scale * 0.78 + randomBetween(-10, 10);
+          p.ty = y - heartY * scale * 0.78 + randomBetween(-10, 10);
+
+          burstParticles.push(p);
+        }
+      }
+
+      function createSparkles() {
+        starParticles.length = 0;
+        const total = 40;
+
+        for (let i = 0; i < total; i++) {
+          starParticles.push({
+            x: Math.random() * window.innerWidth,
+            y: Math.random() * window.innerHeight,
+            r: randomBetween(1, 2.8),
+            speed: randomBetween(0.2, 1),
+            alpha: randomBetween(0.3, 1),
+            color: BLUE_SHADES[Math.floor(Math.random() * BLUE_SHADES.length)]
+          });
+        }
+      }
+
+      function drawBackgroundGlow() {
+        const gradient = ctx.createRadialGradient(
+          window.innerWidth * 0.5,
+          window.innerHeight * 0.35,
+          0,
+          window.innerWidth * 0.5,
+          window.innerHeight * 0.35,
+          Math.max(window.innerWidth, window.innerHeight) * 0.7
+        );
+
+        gradient.addColorStop(0, 'rgba(96, 165, 250, 0.18)');
+        gradient.addColorStop(0.4, 'rgba(59, 130, 246, 0.08)');
+        gradient.addColorStop(1, 'rgba(2, 6, 23, 0)');
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+      }
+
+      function drawStars() {
+        for (const star of starParticles) {
+          const pulse = 0.5 + Math.sin((performance.now() * 0.002 + star.x) * 0.8) * 0.5;
+          ctx.beginPath();
+          ctx.fillStyle = star.color;
+          ctx.globalAlpha = star.alpha * pulse;
+          ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      function animate() {
+        ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+        drawBackgroundGlow();
+        drawStars();
+
+        for (const p of floatParticles) {
+          p.update();
+          p.draw();
+        }
+
+        for (let i = burstParticles.length - 1; i >= 0; i--) {
+          const p = burstParticles[i];
+          p.update();
+          p.draw();
+
+          if (p.isDead) {
+            burstParticles.splice(i, 1);
+          }
+        }
+
+        requestAnimationFrame(animate);
+      }
+
+      window.addEventListener('resize', () => {
+        resizeCanvas();
+        createFloatingParticles();
+        createSparkles();
+      });
+
+      window.addEventListener('click', (event) => {
+        spawnHeartBurst(event.clientX, event.clientY);
+      });
+
+      window.addEventListener('touchstart', (event) => {
+        const touch = event.touches[0];
+        if (touch) {
+          spawnHeartBurst(touch.clientX, touch.clientY);
+        }
+      }, { passive: true });
+
+      resizeCanvas();
+      createFloatingParticles();
+      createSparkles();
+      animate();
+    </script>
+  </body>
+</html>
